@@ -40,7 +40,7 @@ async def test_startup_event_payload_and_user_agent(monkeypatch: pytest.MonkeyPa
 
     assert request.headers["User-Agent"]
     assert body["type"] == "event"
-    assert event_payload["name"] == f"startup.{payload['deployment_method']}"
+    assert event_payload["name"] == "startup"
     assert payload["server_version"] == "1.2.3"
     assert payload["mcp_mode"] == "http"
     assert payload["deployment_method"] in {"docker", "mcpb", "uvx+pypi", "cli", "plain-code-checkout"}
@@ -76,7 +76,7 @@ async def test_tool_event_error_contains_classification(monkeypatch: pytest.Monk
     body = json.loads(route.calls.last.request.content.decode("utf-8"))
     event_payload = body["payload"]
     payload = event_payload["data"]
-    assert event_payload["name"] == "tool_error.validation.create_test_case"
+    assert event_payload["name"] == "tool_error"
     assert payload["tool_name"] == "create_test_case"
     assert payload["outcome"] == "error"
     assert payload["duration_bucket"] == "500ms-2s"
@@ -106,7 +106,7 @@ async def test_tool_event_non_validation_error_uses_other_error_event() -> None:
     body = json.loads(route.calls.last.request.content.decode("utf-8"))
     event_payload = body["payload"]
     payload = event_payload["data"]
-    assert event_payload["name"] == "tool_error.other.search_test_cases"
+    assert event_payload["name"] == "tool_error"
     assert payload["error_category"] == "unexpected"
 
 
@@ -339,7 +339,7 @@ async def test_tool_event_is_scheduled_async_non_blocking() -> None:
     release_send = asyncio.Event()
 
     async def fake_send_event(*, event_name: str, payload: dict[str, str]) -> None:
-        assert event_name == "tool_use.list_test_cases"
+        assert event_name == "tool_use"
         assert payload["tool_name"] == "list_test_cases"
         entered_send.set()
         await release_send.wait()

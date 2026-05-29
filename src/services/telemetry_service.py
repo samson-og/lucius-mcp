@@ -83,7 +83,7 @@ class TelemetryService:
                 "installation_id_hash": self._installation_id_hash(),
             }
         )
-        self._schedule_event(f"startup.{deployment_method}", payload)
+        self._schedule_event("startup", payload)
 
     def emit_tool_usage_event(
         self,
@@ -96,7 +96,7 @@ class TelemetryService:
         if not self._enabled:
             return
         payload = self._runtime_context()
-        event_name = f"tool_use.{tool_name}"
+        event_name = "tool_use"
         payload.update(
             {
                 "tool_name": tool_name,
@@ -108,10 +108,7 @@ class TelemetryService:
         if error is not None:
             error_category = self._classify_error(error)
             payload["error_category"] = error_category
-            if error_category == "validation":
-                event_name = f"tool_error.validation.{tool_name}"
-            else:
-                event_name = f"tool_error.other.{tool_name}"
+            event_name = "tool_error"
         self._schedule_event(event_name, payload)
 
     async def drain(self) -> None:

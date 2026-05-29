@@ -34,8 +34,8 @@ async def test_startup_and_tool_events_sent_to_umami(monkeypatch: pytest.MonkeyP
     startup_payload = startup_event["data"]
     tool_payload = tool_event["data"]
 
-    assert startup_event["name"] == f"startup.{startup_payload['deployment_method']}"
-    assert tool_event["name"] == "tool_use.search_test_cases"
+    assert startup_event["name"] == "startup"
+    assert tool_event["name"] == "tool_use"
     assert startup_payload["server_version"]
     assert startup_payload["project_id_hash"] != "999"
     assert tool_payload["tool_name"] == "search_test_cases"

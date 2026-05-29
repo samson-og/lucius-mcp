@@ -138,7 +138,7 @@ async def test_telemetry_startup_event_emitted(
             item
             for item in captures
             if isinstance(item.body.get("payload"), dict)
-            and str(item.body["payload"].get("name", "")).startswith("startup.")
+            and str(item.body["payload"].get("name", "")) == "startup"
         ),
         None,
     )
@@ -177,13 +177,18 @@ async def test_telemetry_tool_success_and_error_events_emitted(
         for item in captures
         if isinstance(item.body.get("payload"), dict)
         and (
-            str(item.body["payload"].get("name", "")).startswith("tool_use.")
-            or str(item.body["payload"].get("name", "")).startswith("tool_error.")
+            str(item.body["payload"].get("name", "")) == "tool_use"
+            or str(item.body["payload"].get("name", "")) == "tool_error"
         )
     ]
     assert len(tool_events) >= 2
 
-    update_event = next(item for item in tool_events if item.body["payload"].get("name") == "tool_use.update_test_case")
+    update_event = next(
+        item
+        for item in tool_events
+        if item.body["payload"].get("name") == "tool_use"
+        if item.body["payload"].get("data", {}).get("tool_name") == "update_test_case"
+    )
     update_payload = update_event.body["payload"]["data"]
     assert update_payload["outcome"] == "success"
     assert update_payload["duration_bucket"]
@@ -192,7 +197,8 @@ async def test_telemetry_tool_success_and_error_events_emitted(
     search_event = next(
         item
         for item in tool_events
-        if item.body["payload"].get("name") == "tool_error.validation.search_test_cases"
+        if item.body["payload"].get("name") == "tool_error"
+        if item.body["payload"].get("data", {}).get("tool_name") == "search_test_cases"
         if isinstance(item.body["payload"].get("data"), dict)
     )
     search_payload = search_event.body["payload"]["data"]
