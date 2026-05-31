@@ -16,6 +16,7 @@ Telemetry sends best-effort runtime and tool usage metadata to Umami and never b
 - Sensitive identifiers are protected with HMAC-SHA256 using a local secret generated per installation.
 - If that local secret cannot be loaded, sensitive identifier fields are emitted as `unknown` (never plain SHA-256).
 - If `TelemetryConfig.umami_website_id` is unset, Lucius logs a concise warning and skips sending.
+- Event names are intentionally flat and stable: `startup`, `tool_use`, and `tool_error`. Deployment method, tool name, and error classification stay in payload fields.
 - Failures to reach Umami are swallowed and logged without stack traces.
 
 ## Runtime Overrides

@@ -10,6 +10,7 @@ import respx
 
 from src.services.telemetry_service import TelemetryService
 from src.utils.config import settings
+from src.utils.error import AllureAPIError, AuthenticationError
 
 
 @pytest.mark.asyncio
@@ -40,7 +41,7 @@ async def test_startup_event_payload_and_user_agent(monkeypatch: pytest.MonkeyPa
 
     assert request.headers["User-Agent"]
     assert body["type"] == "event"
-    assert event_payload["name"] == f"startup.{payload['deployment_method']}"
+    assert event_payload["name"] == "startup"
     assert payload["server_version"] == "1.2.3"
     assert payload["mcp_mode"] == "http"
     assert payload["deployment_method"] in {"docker", "mcpb", "uvx+pypi", "cli", "plain-code-checkout"}
@@ -76,7 +77,7 @@ async def test_tool_event_error_contains_classification(monkeypatch: pytest.Monk
     body = json.loads(route.calls.last.request.content.decode("utf-8"))
     event_payload = body["payload"]
     payload = event_payload["data"]
-    assert event_payload["name"] == "tool_error.validation.create_test_case"
+    assert event_payload["name"] == "tool_error"
     assert payload["tool_name"] == "create_test_case"
     assert payload["outcome"] == "error"
     assert payload["duration_bucket"] == "500ms-2s"
@@ -106,8 +107,48 @@ async def test_tool_event_non_validation_error_uses_other_error_event() -> None:
     body = json.loads(route.calls.last.request.content.decode("utf-8"))
     event_payload = body["payload"]
     payload = event_payload["data"]
-    assert event_payload["name"] == "tool_error.other.search_test_cases"
+    assert event_payload["name"] == "tool_error"
     assert payload["error_category"] == "unexpected"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "expected_category"),
+    [
+        (AuthenticationError("bad token"), "auth"),
+        (AllureAPIError("upstream API failed"), "api"),
+        (httpx.TimeoutException("request timed out"), "api"),
+    ],
+)
+@respx.mock
+async def test_tool_event_error_preserves_flat_name_for_auth_and_api_failures(
+    error: Exception,
+    expected_category: str,
+) -> None:
+    service = TelemetryService(
+        enabled=True,
+        umami_base_url="https://cloud.umami.is",
+        umami_website_id="website-1",
+        umami_hostname="lucius.test",
+    )
+    route = respx.post("https://cloud.umami.is/api/send").mock(return_value=httpx.Response(204))
+
+    service.emit_tool_usage_event(
+        tool_name="list_test_cases",
+        outcome="error",
+        duration_ms=120.0,
+        error=error,
+    )
+    await service.drain()
+
+    assert route.called
+    body = json.loads(route.calls.last.request.content.decode("utf-8"))
+    event_payload = body["payload"]
+    payload = event_payload["data"]
+    assert event_payload["name"] == "tool_error"
+    assert payload["tool_name"] == "list_test_cases"
+    assert payload["outcome"] == "error"
+    assert payload["error_category"] == expected_category
 
 
 @pytest.mark.asyncio
@@ -339,7 +380,7 @@ async def test_tool_event_is_scheduled_async_non_blocking() -> None:
     release_send = asyncio.Event()
 
     async def fake_send_event(*, event_name: str, payload: dict[str, str]) -> None:
-        assert event_name == "tool_use.list_test_cases"
+        assert event_name == "tool_use"
         assert payload["tool_name"] == "list_test_cases"
         entered_send.set()
         await release_send.wait()

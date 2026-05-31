@@ -1075,3 +1075,41 @@ so that I can navigate users directly to the relevant TestOps objects without ma
 **When** unit, integration, and selected e2e tests execute
 **Then** they verify URL generation for test cases, launches, defects, test plans, and shared steps
 **And** they verify output remains backward compatible for existing ID parsing and CLI formatting.
+
+## Epic 11: Telemetry Signal Simplification
+
+Goal: Simplify telemetry event naming so analytics stay queryable without encoding tool names, deployment methods, or error classes in the event name itself.
+
+### Story 11.1: Flatten Telemetry Event Names
+
+As a Lucius maintainer,
+I want telemetry events to use flat top-level names such as `startup`, `tool_use`, and `tool_error`,
+so that downstream dashboards can group events consistently while keeping the same runtime properties in the payload.
+
+**Acceptance Criteria:**
+
+**Given** Lucius emits a startup telemetry event
+**When** telemetry is enabled
+**Then** the event name is exactly `startup`
+**And** the payload still includes `deployment_method`, `mcp_mode`, `server_version`, and the other existing startup properties.
+
+**Given** Lucius emits a successful tool telemetry event
+**When** any tool finishes successfully
+**Then** the event name is exactly `tool_use`
+**And** the payload still includes `tool_name`, `outcome`, `duration_bucket`, and the existing runtime context fields.
+
+**Given** Lucius emits a failed tool telemetry event
+**When** validation, auth, API, or unexpected failures occur
+**Then** the event name is exactly `tool_error`
+**And** the payload still includes `tool_name`, `outcome`, and `error_category`
+**And** the implementation does not add replacement sublevels such as `tool_error.validation`.
+
+**Given** existing telemetry dashboards or tests need deployment method, tool identity, or error class
+**When** they read the event payload
+**Then** those dimensions are still available as properties
+**And** no existing payload field is removed solely because the event name was flattened.
+
+**Given** telemetry docs and automated tests are updated
+**When** maintainers review the change
+**Then** docs describe the flat event taxonomy explicitly
+**And** unit, integration, and e2e tests assert the new event names without weakening payload coverage.
