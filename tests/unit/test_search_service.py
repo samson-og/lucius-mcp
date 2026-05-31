@@ -173,6 +173,42 @@ async def test_search_test_cases_parses_query(service: SearchService, mock_clien
 
 
 @pytest.mark.asyncio
+async def test_search_test_cases_normalizes_compact_aql(service: SearchService, mock_client: AllureClient) -> None:
+    page = PageTestCaseDto(content=[], total_elements=0, number=0, size=20, total_pages=0)
+    mock_client.validate_test_case_query = AsyncMock(return_value=(True, 0))
+    mock_client.search_test_cases_aql = AsyncMock(return_value=page)
+
+    await service.search_test_cases(aql='status="Draft" and automated=true')
+
+    mock_client.validate_test_case_query.assert_awaited_once_with(
+        project_id=123,
+        rql='status = "Draft" and automated = true',
+    )
+    mock_client.search_test_cases_aql.assert_awaited_once_with(
+        project_id=123,
+        rql='status = "Draft" and automated = true',
+        page=0,
+        size=20,
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_test_cases_normalizes_tag_shorthand_aql(
+    service: SearchService, mock_client: AllureClient
+) -> None:
+    page = PageTestCaseDto(content=[], total_elements=0, number=0, size=20, total_pages=0)
+    mock_client.validate_test_case_query = AsyncMock(return_value=(True, 0))
+    mock_client.search_test_cases_aql = AsyncMock(return_value=page)
+
+    await service.search_test_cases(aql="tag:smoke tag:regression")
+
+    mock_client.validate_test_case_query.assert_awaited_once_with(
+        project_id=123,
+        rql='tag = "smoke" and tag = "regression"',
+    )
+
+
+@pytest.mark.asyncio
 async def test_list_test_cases_validates_project_id(service: SearchService) -> None:
     service._project_id = 0
     with pytest.raises(AllureValidationError, match="Project ID is required and must be positive"):
@@ -319,11 +355,11 @@ async def test_search_test_cases_aql_bypasses_parser(
     assert result.items[0].name == "Failed Test"
     mock_client_with_aql.validate_test_case_query.assert_awaited_once_with(
         project_id=123,
-        rql='status="failed" and tag="regression"',
+        rql='status = "failed" and tag = "regression"',
     )
     mock_client_with_aql.search_test_cases_aql.assert_awaited_once_with(
         project_id=123,
-        rql='status="failed" and tag="regression"',
+        rql='status = "failed" and tag = "regression"',
         page=0,
         size=20,
     )

@@ -7,6 +7,7 @@ from src.client.generated.models.test_plan_create_dto import TestPlanCreateDto
 from src.client.generated.models.test_plan_dto import TestPlanDto
 from src.client.generated.models.test_plan_patch_dto import TestPlanPatchDto
 from src.client.generated.models.tree_selection_dto import TreeSelectionDto
+from src.utils.aql import normalize_aql
 
 logger = logging.getLogger(__name__)
 
@@ -50,16 +51,17 @@ class PlanService:
             name=name,
             project_id=self._project_id,
         )
+        normalized_aql = normalize_aql(aql_filter) if aql_filter else None
 
         plan = await self._client._call_api(self._api.create7(test_plan_create_dto=create_dto))
 
         # Apply selection/filter if needed
-        if test_case_ids or aql_filter:
+        if test_case_ids or normalized_aql:
             # Ensure plan has an ID
             if plan.id is None:
                 raise AllureValidationError("Created plan returned no ID")
 
-            await self.update_plan_content(plan_id=plan.id, test_case_ids_add=test_case_ids, aql_filter=aql_filter)
+            await self.update_plan_content(plan_id=plan.id, test_case_ids_add=test_case_ids, aql_filter=normalized_aql)
             # Re-fetch
             plan = await self.get_plan(plan.id)
 
@@ -98,6 +100,7 @@ class PlanService:
     ) -> TestPlanDto:
         """Update plan content (selection/filter)."""
         current = await self.get_plan(plan_id)
+        normalized_aql = normalize_aql(aql_filter) if aql_filter is not None else None
 
         current_selection = current.tree_selection or TreeSelectionDto()
         current_leafs_include = set(current_selection.leafs_include or [])
@@ -112,7 +115,7 @@ class PlanService:
             # If in include, remove
             current_leafs_include.difference_update(test_case_ids_remove)
             # If the plan has a base_rql, removing a case means adding to exclude.
-            if current.base_rql or aql_filter:
+            if current.base_rql or normalized_aql:
                 current_leafs_exclude.update(test_case_ids_remove)
 
         new_selection = TreeSelectionDto(
@@ -125,7 +128,8 @@ class PlanService:
         )
 
         patch = TestPlanPatchDto(
-            tree_selection=new_selection, base_rql=aql_filter if aql_filter is not None else current.base_rql
+            tree_selection=new_selection,
+            base_rql=normalized_aql if normalized_aql is not None else current.base_rql,
         )
 
         await self._client._call_api(self._api.patch7(id=plan_id, test_plan_patch_dto=patch))

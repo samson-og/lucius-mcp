@@ -16,6 +16,7 @@ from src.client.generated.models.launch_preview_dto import LaunchPreviewDto
 from src.client.generated.models.launch_tag_dto import LaunchTagDto
 from src.client.generated.models.page_launch_dto import PageLaunchDto
 from src.client.generated.models.page_launch_preview_dto import PageLaunchPreviewDto
+from src.utils.aql import quote_aql_string
 from src.utils.schema_hint import generate_schema_hint
 
 MAX_NAME_LENGTH = 255
@@ -123,14 +124,25 @@ class LaunchService:
         self._validate_project_id(self._project_id)
         self._validate_pagination(page, size)
 
-        response = await self._client.list_launches(
-            project_id=self._project_id,
-            page=page,
-            size=size,
-            search=search,
-            filter_id=filter_id,
-            sort=sort,
-        )
+        try:
+            response = await self._client.list_launches(
+                project_id=self._project_id,
+                page=page,
+                size=size,
+                search=search,
+                filter_id=filter_id,
+                sort=sort,
+            )
+        except AllureValidationError as exc:
+            if not self._should_fallback_to_aql(search=search, error=exc):
+                raise
+
+            return await self.search_launches_aql(
+                rql=f'name ~= "{quote_aql_string(search)}"',
+                page=page,
+                size=size,
+                sort=sort,
+            )
 
         page_data = self._extract_page(response)
 
@@ -350,6 +362,14 @@ class LaunchService:
             raise AllureValidationError("Launch name is required")
         if len(name) > MAX_NAME_LENGTH:
             raise AllureValidationError(f"Launch name must be {MAX_NAME_LENGTH} characters or less")
+
+    @staticmethod
+    def _should_fallback_to_aql(search: str | None, error: AllureValidationError) -> bool:
+        if not search:
+            return False
+
+        message = str(error).lower()
+        return "invalid search" in message or ("search" in message and "invalid" in message)
 
     @staticmethod
     def _validate_tags(tags: list[str] | None) -> None:

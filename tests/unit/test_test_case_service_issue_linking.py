@@ -41,6 +41,7 @@ class TestIssueLinking:
         # Mock Bulk API
         mock_bulk_instance = mock_bulk_api.return_value
         mock_bulk_instance.issue_add1 = AsyncMock()
+        service.get_test_case = AsyncMock(return_value=Mock(issues=[], project_id=1))
 
         await service.add_issues_to_test_case(test_case_id, issues)
 
@@ -77,6 +78,7 @@ class TestIssueLinking:
         mock_int_service_instance = mock_integration_service.return_value
         mock_int_service_instance.resolve_integration_for_issues = AsyncMock(return_value=2)
         mock_bulk_api.return_value.issue_add1 = AsyncMock()
+        service.get_test_case = AsyncMock(return_value=Mock(issues=[], project_id=1))
 
         await service.add_issues_to_test_case(100, ["PROJ-123"], integration_id=2)
 
@@ -90,6 +92,29 @@ class TestIssueLinking:
 
     @pytest.mark.asyncio
     @patch("src.client.generated.api.test_case_bulk_controller_api.TestCaseBulkControllerApi")
+    @patch("src.services.integration_service.IntegrationService")
+    async def test_add_issues_uses_test_case_project_context(
+        self, mock_integration_service, mock_bulk_api, service: TestCaseService
+    ) -> None:
+        mock_case = Mock(issues=[], project_id=166)
+        service.get_test_case = AsyncMock(return_value=mock_case)
+
+        mock_int_service_instance = mock_integration_service.return_value
+        mock_int_service_instance.resolve_integration_for_issues = AsyncMock(return_value=2)
+        mock_bulk_api.return_value.issue_add1 = AsyncMock()
+
+        await service.add_issues_to_test_case(100, ["PROJ-123"])
+
+        mock_int_service_instance.resolve_integration_for_issues.assert_called_once_with(
+            integration_id=None,
+            integration_name=None,
+            project_id=166,
+        )
+        request_dto = mock_bulk_api.return_value.issue_add1.call_args[0][0]
+        assert request_dto.selection.project_id == 166
+
+    @pytest.mark.asyncio
+    @patch("src.client.generated.api.test_case_bulk_controller_api.TestCaseBulkControllerApi")
     async def test_remove_issues_success(self, mock_bulk_api, service: TestCaseService, mock_client: AsyncMock) -> None:
         """Test removing issues from a test case."""
         test_case_id = 100
@@ -99,7 +124,7 @@ class TestIssueLinking:
         mock_issue = Mock()
         mock_issue.name = "PROJ-123"
         mock_issue.id = 999
-        mock_case = Mock(issues=[mock_issue])
+        mock_case = Mock(issues=[mock_issue], project_id=166)
         service.get_test_case = AsyncMock(return_value=mock_case)
 
         mock_bulk_instance = mock_bulk_api.return_value
@@ -115,6 +140,7 @@ class TestIssueLinking:
         assert isinstance(request_dto, TestCaseBulkEntityIdsDto)
         assert request_dto.ids == [999]
         assert request_dto.selection.leafs_include == [test_case_id]
+        assert request_dto.selection.project_id == 166
 
     @pytest.mark.asyncio
     @patch("src.client.generated.api.test_case_bulk_controller_api.TestCaseBulkControllerApi")
@@ -136,6 +162,7 @@ class TestIssueLinking:
         service._validate_test_layer = AsyncMock(return_value=None)
         service._add_steps = AsyncMock()
         service._add_global_attachments = AsyncMock()
+        service.get_test_case = AsyncMock(return_value=Mock(issues=[], project_id=1))
 
         # Mock integrations via IntegrationService
         with patch("src.services.integration_service.IntegrationService") as mock_integration_service:
@@ -259,7 +286,7 @@ class TestIssueLinking:
         mock_issue.name = "PROJ-123"
         mock_issue.integration_id = 1
         mock_issue.id = 999
-        mock_case = Mock(issues=[mock_issue])
+        mock_case = Mock(issues=[mock_issue], project_id=1)
         service.get_test_case = AsyncMock(return_value=mock_case)
 
         mock_bulk_instance = mock_bulk_api.return_value
@@ -294,7 +321,7 @@ class TestIssueLinking:
         mock_issue = Mock()
         mock_issue.name = "PROJ-123"
         mock_issue.integration_id = 2
-        mock_case = Mock(issues=[mock_issue])
+        mock_case = Mock(issues=[mock_issue], project_id=1)
         service.get_test_case = AsyncMock(return_value=mock_case)
 
         mock_bulk_instance = mock_bulk_api.return_value
