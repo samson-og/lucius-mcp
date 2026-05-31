@@ -123,22 +123,25 @@ class LaunchService:
         """
         self._validate_project_id(self._project_id)
         self._validate_pagination(page, size)
+        normalized_search = search.strip() if isinstance(search, str) else search
+        if normalized_search == "":
+            normalized_search = None
 
         try:
             response = await self._client.list_launches(
                 project_id=self._project_id,
                 page=page,
                 size=size,
-                search=search,
+                search=normalized_search,
                 filter_id=filter_id,
                 sort=sort,
             )
         except AllureValidationError as exc:
-            if not self._should_fallback_to_aql(search=search, filter_id=filter_id, error=exc):
+            if not self._should_fallback_to_aql(search=normalized_search, filter_id=filter_id, error=exc):
                 raise
 
             return await self.search_launches_aql(
-                rql=f'name ~= "{quote_aql_string(search)}"',
+                rql=f'name ~= "{quote_aql_string(normalized_search)}"',
                 page=page,
                 size=size,
                 sort=sort,

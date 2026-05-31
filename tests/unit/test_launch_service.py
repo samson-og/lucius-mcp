@@ -129,6 +129,27 @@ async def test_list_launches_does_not_fallback_when_filter_scope_is_present(
 
 
 @pytest.mark.asyncio
+async def test_list_launches_treats_blank_search_as_no_filter(
+    service: LaunchService, mock_client: MagicMock
+) -> None:
+    page = PageLaunchDto(content=[LaunchDto(id=5, name="No Filter")], total_elements=1, number=0, size=20, total_pages=1)
+    mock_client.list_launches.return_value = FindAll29200Response(page)
+
+    result = await service.list_launches(search="   ")
+
+    assert result.total == 1
+    mock_client.list_launches.assert_awaited_once_with(
+        project_id=1,
+        page=0,
+        size=20,
+        search=None,
+        filter_id=None,
+        sort=None,
+    )
+    mock_client.search_launches_aql.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_search_launches_aql(service: LaunchService, mock_client: MagicMock) -> None:
     page = PageLaunchDto(content=[LaunchDto(id=3, name="AQL")], total_elements=1, number=0, size=20, total_pages=1)
     mock_client.search_launches_aql.return_value = page
