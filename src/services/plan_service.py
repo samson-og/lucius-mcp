@@ -41,6 +41,8 @@ class PlanService:
         """
         if not name:
             raise AllureValidationError("Test Plan name is required")
+        if aql_filter is not None and not aql_filter.strip():
+            raise AllureValidationError("AQL filter must be a non-empty string when provided")
 
         if not test_case_ids and not aql_filter:
             # Allow empty plans, but log warning if neither provided?

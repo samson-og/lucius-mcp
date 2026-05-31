@@ -111,6 +111,12 @@ async def test_update_plan_content_normalizes_tag_shorthand_aql(service: PlanSer
 
 
 @pytest.mark.asyncio
+async def test_create_plan_rejects_blank_aql_filter(service: PlanService) -> None:
+    with pytest.raises(Exception, match="AQL filter must be a non-empty string when provided"):
+        await service.create_plan("Blank Filter Plan", aql_filter="   ")
+
+
+@pytest.mark.asyncio
 async def test_add_cases_to_plan(service: PlanService, mock_client: AsyncMock) -> None:
     """Test adding cases to an existing plan."""
     plan_id = 1

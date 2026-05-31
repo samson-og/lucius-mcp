@@ -3,7 +3,7 @@
 import re
 
 _TAG_QUERY_PATTERN = re.compile(r"tag:(?P<tag>\S+)", re.IGNORECASE)
-_COMPACT_OPERATOR_PATTERN = re.compile(r"(?<=\S)(!=|~=|>=|<=|=|>|<)(?=\S)")
+_OPERATORS = ("!=", "~=", ">=", "<=", "=", ">", "<")
 
 
 def normalize_aql(query: str) -> str:
@@ -20,7 +20,34 @@ def normalize_aql(query: str) -> str:
         if tags:
             return " and ".join(f'tag = "{tag}"' for tag in tags)
 
-    return _COMPACT_OPERATOR_PATTERN.sub(r" \1 ", normalized)
+    result: list[str] = []
+    i = 0
+    in_quotes = False
+    while i < len(normalized):
+        char = normalized[i]
+
+        if char == '"' and (i == 0 or normalized[i - 1] != "\\"):
+            in_quotes = not in_quotes
+            result.append(char)
+            i += 1
+            continue
+
+        if not in_quotes:
+            operator = next((op for op in _OPERATORS if normalized.startswith(op, i)), None)
+            if operator is not None:
+                if result and result[-1] not in {" ", "\t"}:
+                    result.append(" ")
+                result.append(operator)
+                next_index = i + len(operator)
+                if next_index < len(normalized) and normalized[next_index] not in {" ", "\t"}:
+                    result.append(" ")
+                i = next_index
+                continue
+
+        result.append(char)
+        i += 1
+
+    return "".join(result)
 
 
 def quote_aql_string(value: str) -> str:

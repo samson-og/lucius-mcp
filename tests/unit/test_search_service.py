@@ -9,6 +9,7 @@ from src.client.generated.models.custom_field_value_with_cf_dto import CustomFie
 from src.client.generated.models.test_tag_dto import TestTagDto
 from src.services.search_service import SearchQueryParser, SearchService, TestCaseDetails
 from src.tools.search import _format_search_results, _format_test_case_details, _format_test_case_list
+from src.utils.aql import normalize_aql
 
 
 @pytest.fixture
@@ -206,6 +207,10 @@ async def test_search_test_cases_normalizes_tag_shorthand_aql(
         project_id=123,
         rql='tag = "smoke" and tag = "regression"',
     )
+
+
+def test_normalize_aql_preserves_quoted_operator_characters() -> None:
+    assert normalize_aql('name ~= "a=b" and status="Draft"') == 'name ~= "a=b" and status = "Draft"'
 
 
 @pytest.mark.asyncio

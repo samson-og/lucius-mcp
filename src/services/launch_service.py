@@ -134,7 +134,7 @@ class LaunchService:
                 sort=sort,
             )
         except AllureValidationError as exc:
-            if not self._should_fallback_to_aql(search=search, error=exc):
+            if not self._should_fallback_to_aql(search=search, filter_id=filter_id, error=exc):
                 raise
 
             return await self.search_launches_aql(
@@ -364,8 +364,8 @@ class LaunchService:
             raise AllureValidationError(f"Launch name must be {MAX_NAME_LENGTH} characters or less")
 
     @staticmethod
-    def _should_fallback_to_aql(search: str | None, error: AllureValidationError) -> bool:
-        if not search:
+    def _should_fallback_to_aql(search: str | None, filter_id: int | None, error: AllureValidationError) -> bool:
+        if not search or filter_id is not None:
             return False
 
         message = str(error).lower()
