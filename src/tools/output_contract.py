@@ -11,7 +11,7 @@ OutputFormat = typing.Literal["plain", "json"]
 StructuredPayload = dict[str, typing.Any]
 ToolOutput = typing.Any
 SUPPORTED_OUTPUT_FORMATS: set[str] = {"plain", "json"}
-DEFAULT_OUTPUT_FORMAT: OutputFormat | None = None
+DEFAULT_OUTPUT_FORMAT: OutputFormat = "json"
 
 
 def _to_plain_output(result: typing.Any) -> str:

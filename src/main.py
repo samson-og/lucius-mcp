@@ -13,6 +13,8 @@ from src.tools.annotations import get_tool_annotations, get_tool_tags, validate_
 from src.utils.config import settings
 from src.utils.error import agent_hint_handler
 from src.utils.logger import configure_logging, get_logger
+from fastmcp.tools.function_tool import FunctionTool
+from src.utils.schema import get_tool_input_schema, get_tool_output_schema
 from src.utils.telemetry import set_telemetry_service, wrap_tool_with_telemetry
 from src.version import __version__
 
@@ -34,11 +36,18 @@ mcp = FastMCP(
 # Register tools
 validate_tool_annotation_coverage({tool.__name__ for tool in all_tools})
 for tool in all_tools:
-    mcp.tool(
+    input_schema = get_tool_input_schema(tool)
+    output_schema = get_tool_output_schema(tool)
+    wrapped = wrap_tool_with_telemetry(tool)
+    ft = FunctionTool(
+        fn=wrapped,
+        name=tool.__name__,
+        parameters=input_schema,
+        output_schema=output_schema,
         tags=get_tool_tags(tool.__name__),
         annotations=get_tool_annotations(tool.__name__),
-        output_schema=None,
-    )(wrap_tool_with_telemetry(tool))
+    )
+    mcp.add_tool(ft)
 
 # The ASGI app and main app are created lazily or only when needed for HTTP mode
 _mcp_asgi = None
