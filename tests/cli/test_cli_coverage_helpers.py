@@ -449,6 +449,7 @@ class TestCLICoverageHelpers:
 
     def test_every_route_tool_signature_supports_output_format(self) -> None:
         from src.tools.output_contract import DEFAULT_OUTPUT_FORMAT
+
         for tool_name in all_route_tool_names():
             fn = load_tool_function(tool_name)
             signature = inspect.signature(fn)
@@ -463,6 +464,7 @@ class TestCLICoverageHelpers:
 
     def test_every_async_tool_in_src_tools_has_output_format_default_structured(self) -> None:
         from src.tools.output_contract import DEFAULT_OUTPUT_FORMAT
+
         tools_dir = Path(__file__).resolve().parents[2] / "src" / "tools"
         skip_modules = {"__init__.py", "annotations.py", "test_layers.py", "output_contract.py"}
 
